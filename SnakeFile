@@ -1,0 +1,116 @@
+import pandas as pd
+
+# parse samples metadata
+samples_tbl=config["samples"]
+samples_meta=pd.read_csv(samples_tbl, header = None)
+samples_meta.columns=["Sample", "Path"]
+samples_meta=samples_meta.set_index("Sample", drop = False)
+
+# override current working directory
+workdir: config["outdir"]
+
+# define pipeline target
+rule all:
+  input: expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in list(range(1,9))]])
+
+rule centrifuge:
+  input:
+    reads=lambda wildcards: samples_meta.Path[wildcards.sample]
+  threads: 32
+  params:
+    db=config["centrifuge_db"]
+  log:
+    "{sample}/centrifuge/logs/{sample}.log"
+  output:
+    centrifuge_res="{sample}/centrifuge/centrifuge_res.tsv",
+    centrifuge_report=temp("{sample}/centrifuge/centrifuge_report.tsv")
+  shell:
+    """
+    centrifuge -p {threads} -U {input.reads} -x {params.db} -S {output.centrifuge_res} \
+      --report-file {output.centrifuge_report} -k 50 --ignore-quals
+    """
+
+rule partition:
+  input:
+    centrifuge_res="{sample}/centrifuge/centrifuge_res.tsv",
+    reads=lambda wildcards: samples_meta.Path[wildcards.sample]
+  threads: 4
+  params:
+    segment="{segment}",
+    ID_mappings=config["pipeline_dir"]+"/database/InfA_refseq_segment_mappings.csv",
+    pipeline_dir=config["pipeline_dir"]
+  output:
+    segment_readIDs="{sample}/centrifuge/{segment}_reads.ids",
+    InfA_reads="{sample}/fastq/{segment}.fastq",
+    target_id="{sample}/target/{segment}_id.txt"
+  log:
+    "{sample}/partition/logs/{sample}_{segment}.log"
+  shell:
+    """
+    {params.pipeline_dir}/src/centrifuge_res_process.R {input.centrifuge_res} {params.ID_mappings} {params.segment} {output.target_id} {output.segment_readIDs}
+    seqtk subseq {input.reads} {output.segment_readIDs} > {output.InfA_reads}
+    """
+
+rule create_target:
+  input:
+    reads=lambda wildcards: samples_meta.Path[wildcards.sample],
+    target_id="{sample}/target/{segment}_id.txt"
+  threads: 4
+  output:
+    target_fastq=temp("{sample}/target/{segment}.fastq"),
+    target="{sample}/target/{segment}.fasta"
+  shell:
+    """
+    seqtk subseq {input.reads} {input.target_id} > {output.target_fastq}
+    seqtk seq -A {output.target_fastq} > {output.target} 
+    """
+  
+rule racon_1:
+  input:
+    InfA_reads="{sample}/fastq/{segment}.fastq",
+    target="{sample}/target/{segment}.fasta"
+  output:
+    alignment_1=temp("{sample}/racon/1/InfA_{segment}_alignment.paf"),
+    consensus_1="{sample}/racon/1/{segment}.fa"
+  log:
+    "{sample}/racon/1/logs/{sample}_{segment}.log"
+  threads: 16
+  shell:
+    """
+    minimap2 -x map-ont -t {threads} {input.target} {input.InfA_reads} > {output.alignment_1}
+    racon -t {threads} {input.InfA_reads} {output.alignment_1} {input.target} > {output.consensus_1}
+    """
+
+rule racon_2:
+  input:
+    InfA_reads="{sample}/fastq/{segment}.fastq",
+    consensus_1="{sample}/racon/1/{segment}.fa"
+  output:
+    alignment_2=temp("{sample}/racon/2/InfA_{segment}_alignment.paf"),
+    consensus_2="{sample}/racon/2/{segment}.fa"
+  log:
+    "{sample}/racon/2/logs/{sample}_{segment}.log"
+  threads: 16
+  shell:
+    """
+    minimap2 -x map-ont -t {threads} {input.consensus_1} {input.InfA_reads} > {output.alignment_2}
+    racon -t {threads} {input.InfA_reads} {output.alignment_2} {input.consensus_1} > {output.consensus_2}
+    """
+
+rule medaka:
+  input:
+    InfA_reads="{sample}/fastq/{segment}.fastq",
+    consensus_4="{sample}/racon/2/{segment}.fa"
+  threads: 16
+  params:
+    outdir="{sample}/medaka/{segment}"
+  log:
+    "{sample}/medaka/logs/{sample}_{segment}.log"
+  output:
+    consensus="{sample}/consensus/{segment}.fa"
+  shell:
+    """
+    mkdir -p {params.outdir}
+    medaka_consensus -i {input.InfA_reads} -d {input.consensus_4} -o {params.outdir} -t 4
+    cp {params.outdir}/consensus.fasta {output.consensus}
+    """
