@@ -23,8 +23,8 @@ influenza_consensus.sh -i samples.csv -o /path/to/output --db /path/to/centrifug
 ```
 
 ## Dependencies
-R >= 3.6
-medaka == 1.0.3
-racon >= 1.4.13
-centrifuge >= 1.0.3
-seqtk >= 1.3
+* R >= 3.6
+* medaka == 1.0.3
+* racon >= 1.4.13
+* centrifuge >= 1.0.3
+* seqtk >= 1.3
