@@ -28,3 +28,4 @@ influenza_consensus.sh -i samples.csv -o /path/to/output --db /path/to/centrifug
 * racon >= 1.4.13
 * centrifuge >= 1.0.3
 * seqtk >= 1.3
+* snakemake >= 5.30.1
