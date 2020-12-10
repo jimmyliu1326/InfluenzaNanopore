@@ -55,7 +55,7 @@ if [[ $? != 0 ]]; then echo "influenza_consensus: racon cannot be called, check 
 centrifuge -h > /dev/null
 if [[ $? != 0 ]]; then echo "influenza_consensus: centrifuge cannot be called, check its installation"; exit 1; fi
 
-# validate input files
+# validate input samples.csv
 if ! test -f $INPUT_PATH; then echo "influenza_consensus: Input sample file does not exist, exiting"; exit 1; fi
 
 while read lines; do
@@ -66,6 +66,9 @@ while read lines; do
     exit 1
   fi
 done < $INPUT_PATH
+
+# validate database path
+if ! test -f ${DB_PATH}.1.cf; then echo "influenza_consensus: Specified Centrifuge database does not exist, exiting"; exit 1; fi
 
 # create output directory if does not exist
 if ! test -d $OUTPUT_PATH; then mkdir -p $OUTPUT_PATH; fi
