@@ -13,6 +13,7 @@ Required arguments:
 
 Optional arguments:
 
+--notrim      Disable adapator trimming by porechop
 -t|--threads  Number of threads
 -h|--help     Display help message
 ```
@@ -29,3 +30,4 @@ influenza_consensus.sh -i samples.csv -o /path/to/output --db /path/to/centrifug
 * centrifuge >= 1.0.3
 * seqtk >= 1.3
 * snakemake >= 5.30.1
+* porechop >= 0.2.4
