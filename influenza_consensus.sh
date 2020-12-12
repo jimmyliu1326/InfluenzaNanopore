@@ -19,7 +19,7 @@ Optional arguments:
 script_dir=$(dirname $(realpath $0))
 
 # parse arguments
-opts=`getopt -o hi:o:t: -l help,input:,output:,threads:,db: -- "$@"`
+opts=`getopt -o hi:o:t: -l help,input:,output:,threads:,db:,notrim -- "$@"`
 eval set -- "$opts"
 if [ $? != 0 ] ; then echo "influenza_consensus: Invalid arguments used, exiting"; usage; exit 1 ; fi
 if [[ $1 =~ ^--$ ]] ; then echo "influenza_consensus: Invalid arguments used, exiting"; usage; exit 1 ; fi
@@ -30,6 +30,7 @@ while true; do
         -o|--output) OUTPUT_PATH=$2; shift 2;;
         --db) DB_PATH=$2; shift 2;;
         -t|--threads) THREADS=$2; shift 2;;
+        --notrim) TRIM=0; shift 1;;
         --) shift; break ;;
         -h|--help) usage; exit 0;;
     esac
@@ -55,6 +56,9 @@ if [[ $? != 0 ]]; then echo "influenza_consensus: racon cannot be called, check 
 centrifuge -h > /dev/null
 if [[ $? != 0 ]]; then echo "influenza_consensus: centrifuge cannot be called, check its installation"; exit 1; fi
 
+porechop -h > /dev/null
+if [[ $? != 0 ]]; then echo "influenza_consensus: porechop cannot be called, check its installation"; exit 1; fi
+
 # validate input samples.csv
 if ! test -f $INPUT_PATH; then echo "influenza_consensus: Input sample file does not exist, exiting"; exit 1; fi
 
@@ -76,6 +80,9 @@ if ! test -d $OUTPUT_PATH; then mkdir -p $OUTPUT_PATH; fi
 # Set default number of threads if not specified
 if test -z $THREADS; then THREADS=32; fi
 
+# Set default trim mode to true if not specified
+if test -z $TRIM; then TRIM=1; fi
+
 # call snakemake
 snakemake --snakefile $script_dir/SnakeFile --cores $THREADS \
-  --config samples=$(realpath $INPUT_PATH) outdir=$OUTPUT_PATH pipeline_dir=$script_dir centrifuge_db=$DB_PATH
+  --config samples=$(realpath $INPUT_PATH) outdir=$OUTPUT_PATH pipeline_dir=$script_dir centrifuge_db=$DB_PATH trim=$TRIM

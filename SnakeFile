@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 
 # parse samples metadata
 samples_tbl=config["samples"]
@@ -13,9 +14,30 @@ workdir: config["outdir"]
 rule all:
   input: expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in list(range(1,9))]])
 
-rule centrifuge:
+# define input for centrifuge
+def centrifuge_input(wildcards):
+  sample=wildcards["sample"]
+  if config["trim"] == 0:
+    return samples_meta.Path[wildcards.sample]
+  else:
+    return os.path.join(sample, "porechop", sample+"_trimmed.fastq")
+
+rule porechop:
   input:
     reads=lambda wildcards: samples_meta.Path[wildcards.sample]
+  threads: 32
+  log:
+    "{sample}/porechop/logs/{sample}.log"
+  output:
+    trimmed_reads="{sample}/porechop/{sample}_trimmed.fastq"
+  shell:
+    """
+    porechop -t {threads} -i {input.reads} -o {output.trimmed_reads}
+    """
+
+rule centrifuge:
+  input:
+    reads=centrifuge_input
   threads: 32
   params:
     db=config["centrifuge_db"]
