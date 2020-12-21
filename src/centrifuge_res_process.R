@@ -62,12 +62,9 @@ fastq_ids <- centrifuge_res %>%
   filter(!(readID %in% chimeric_reads),
          seqID %in% segment_ids) %>%
          #queryLength <= expected_length+200) %>%
-  group_by(queryLength) %>%
-  arrange(desc(score)) %>%
-  slice(1) %>%
-  ungroup() %>%
   filter(readID != target) %>%
-  pull(readID)
+  pull(readID) %>%
+  unique()
 
 # write output
 write.table(target, file = args[4], quote = F, row.names = F, col.names = F)
