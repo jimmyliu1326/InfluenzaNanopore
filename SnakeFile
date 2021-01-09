@@ -12,7 +12,7 @@ workdir: config["outdir"]
 
 # define pipeline target
 rule all:
-  input: expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in list(range(1,9))]])
+  input: "{sample}/logs/clean_up.log"
 
 # define input for centrifuge
 def centrifuge_input(wildcards):
@@ -27,9 +27,9 @@ rule porechop:
     reads=lambda wildcards: samples_meta.Path[wildcards.sample]
   threads: 32
   log:
-    "{sample}/porechop/logs/{sample}.log"
+    "{sample}/logs/porechop.log"
   output:
-    trimmed_reads="{sample}/porechop/{sample}_trimmed.fastq"
+    trimmed_reads=temp("{sample}/porechop/{sample}_trimmed.fastq")
   shell:
     """
     porechop -t {threads} -i {input.reads} -o {output.trimmed_reads}
@@ -42,9 +42,9 @@ rule centrifuge:
   params:
     db=config["centrifuge_db"]
   log:
-    "{sample}/centrifuge/logs/{sample}.log"
+    "{sample}/logs/centrifuge.log"
   output:
-    centrifuge_res="{sample}/centrifuge/centrifuge_res.tsv",
+    centrifuge_res=temp("{sample}/centrifuge/centrifuge_res.tsv"),
     centrifuge_report=temp("{sample}/centrifuge/centrifuge_report.tsv")
   shell:
     """
@@ -62,11 +62,11 @@ rule partition:
     ID_mappings=config["pipeline_dir"]+"/database/InfA_refseq_segment_mappings.csv",
     pipeline_dir=config["pipeline_dir"]
   output:
-    segment_readIDs="{sample}/centrifuge/{segment}_reads.ids",
-    InfA_reads="{sample}/fastq/{segment}.fastq",
-    target_id="{sample}/target/{segment}_id.txt"
+    segment_readIDs=temp("{sample}/centrifuge/{segment}_reads.ids"),
+    InfA_reads=temp("{sample}/fastq/{segment}.fastq"),
+    target_id=temp("{sample}/target/{segment}_id.txt")
   log:
-    "{sample}/partition/logs/{sample}_{segment}.log"
+    "{sample}/logs/partition_{segment}.log"
   shell:
     """
     {params.pipeline_dir}/src/centrifuge_res_process.R {input.centrifuge_res} {params.ID_mappings} {params.segment} {output.target_id} {output.segment_readIDs}
@@ -80,7 +80,7 @@ rule create_target:
   threads: 4
   output:
     target_fastq=temp("{sample}/target/{segment}.fastq"),
-    target="{sample}/target/{segment}.fasta"
+    target=temp("{sample}/target/{segment}.fasta")
   shell:
     """
     seqtk subseq {input.reads} {input.target_id} > {output.target_fastq}
@@ -95,7 +95,7 @@ rule racon_1:
     alignment_1=temp("{sample}/racon/1/InfA_{segment}_alignment.paf"),
     consensus_1="{sample}/racon/1/{segment}.fa"
   log:
-    "{sample}/racon/1/logs/{sample}_{segment}.log"
+    "{sample}/logs/racon_1_{segment}.log"
   threads: 16
   shell:
     """
@@ -111,7 +111,7 @@ rule racon_2:
     alignment_2=temp("{sample}/racon/2/InfA_{segment}_alignment.paf"),
     consensus_2="{sample}/racon/2/{segment}.fa"
   log:
-    "{sample}/racon/2/logs/{sample}_{segment}.log"
+    "{sample}/logs/racon_2_{segment}.log"
   threads: 16
   shell:
     """
@@ -127,12 +127,27 @@ rule medaka:
   params:
     outdir="{sample}/medaka/{segment}"
   log:
-    "{sample}/medaka/logs/{sample}_{segment}.log"
+    "{sample}/logs/medaka_{segment}.log"
   output:
     consensus="{sample}/consensus/{segment}.fa"
   shell:
     """
-    mkdir -p {params.outdir}
     medaka_consensus -i {input.InfA_reads} -d {input.consensus_4} -o {params.outdir} -t 4
     cp {params.outdir}/consensus.fasta {output.consensus}
     """
+
+rule clean:
+  input:
+    consensus=expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in list(range(1,9))]]),
+    fastq_dir=temp("{sample}/fastq"),
+    racon_dir=temp("{sample}/racon"),
+    medaka_dir=temp("{sample}/medaka"),
+    centrifuge_dir=temp("{sample}/centrifuge"),
+    target_dir=temp("{sample}/target")
+  output:
+    log="{sample}/logs/clean_up.log"
+  shell:
+    """
+    echo "Pipeline successfully ran to completion" > {output.log}
+    """
+  
