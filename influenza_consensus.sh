@@ -65,8 +65,8 @@ if ! test -f $INPUT_PATH; then echo "influenza_consensus: Input sample file does
 while read lines; do
   sample=$(echo $lines | cut -f1 -d',')
   path=$(echo $lines | cut -f2 -d',')
-  if ! test -f $path; then
-    echo "influenza_consensus: Fastq file for ${sample} cannot be found, check its path listed in the input file, exiting"
+  if ! test -d $path; then
+    echo "influenza_consensus: ${sample} directory cannot be found, check its path listed in the input file, exiting"
     exit 1
   fi
 done < $INPUT_PATH

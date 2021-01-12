@@ -18,13 +18,23 @@ rule all:
 def centrifuge_input(wildcards):
   sample=wildcards["sample"]
   if config["trim"] == 0:
-    return samples_meta.Path[wildcards.sample]
+    return os.path.join(sample, sample+".fastq")
   else:
     return os.path.join(sample, "porechop", sample+"_trimmed.fastq")
 
+rule combine_fastq:
+  input:
+    fastq_dir=lambda wildcards: samples_meta.Path[wildcards.sample]
+  output:
+    combined_fastq=temp("{sample}/{sample}.fastq")
+  threads: 1
+  shell:
+    "cat {input.fastq_dir}/*.fastq > {output.combined_fastq}"
+
+
 rule porechop:
   input:
-    reads=lambda wildcards: samples_meta.Path[wildcards.sample]
+    reads="{sample}/{sample}.fastq"
   threads: 32
   log:
     "{sample}/logs/porechop.log"
