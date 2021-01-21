@@ -86,3 +86,13 @@ if test -z $TRIM; then TRIM=1; fi
 # call snakemake
 snakemake --snakefile $script_dir/SnakeFile --cores $THREADS \
   --config samples=$(realpath $INPUT_PATH) outdir=$OUTPUT_PATH pipeline_dir=$script_dir centrifuge_db=$DB_PATH trim=$TRIM
+
+# clean up temporary directories
+while read lines; do
+  sample=$(echo $lines | cut -f1 -d',')
+  for dir in fastq medaka centrifuge target racon; do
+    if test -d $OUTPUT_PATH/$sample/$dir; then
+      rm -rf $OUTPUT_PATH/$sample/$dir
+    fi
+  done
+done < $INPUT_PATH

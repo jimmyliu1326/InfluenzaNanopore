@@ -12,7 +12,7 @@ workdir: config["outdir"]
 
 # define pipeline target
 rule all:
-  input: "{sample}/logs/clean_up.log"
+  input: consensus=expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in list(range(1,9))]])
 
 # define input for centrifuge
 def centrifuge_input(wildcards):
@@ -65,7 +65,7 @@ rule centrifuge:
 rule partition:
   input:
     centrifuge_res="{sample}/centrifuge/centrifuge_res.tsv",
-    reads=lambda wildcards: samples_meta.Path[wildcards.sample]
+    reads=centrifuge_input
   threads: 4
   params:
     segment="{segment}",
@@ -85,7 +85,7 @@ rule partition:
 
 rule create_target:
   input:
-    reads=lambda wildcards: samples_meta.Path[wildcards.sample],
+    reads=centrifuge_input,
     target_id="{sample}/target/{segment}_id.txt"
   threads: 4
   output:
@@ -146,18 +146,18 @@ rule medaka:
     cp {params.outdir}/consensus.fasta {output.consensus}
     """
 
-rule clean:
-  input:
-    consensus=expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in list(range(1,9))]]),
-    fastq_dir=temp("{sample}/fastq"),
-    racon_dir=temp("{sample}/racon"),
-    medaka_dir=temp("{sample}/medaka"),
-    centrifuge_dir=temp("{sample}/centrifuge"),
-    target_dir=temp("{sample}/target")
-  output:
-    log="{sample}/logs/clean_up.log"
-  shell:
-    """
-    echo "Pipeline successfully ran to completion" > {output.log}
-    """
+# rule clean:
+#   input:
+#     consensus=expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in list(range(1,9))]]),
+#     fastq_dir=temp("{sample}/fastq"),
+#     racon_dir=temp("{sample}/racon"),
+#     medaka_dir=temp("{sample}/medaka"),
+#     centrifuge_dir=temp("{sample}/centrifuge"),
+#     target_dir=temp("{sample}/target")
+#   output:
+#     log="{sample}/logs/clean_up.log"
+#   shell:
+#     """
+#     echo "Pipeline successfully ran to completion" > {output.log}
+#     """
   
