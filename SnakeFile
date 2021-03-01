@@ -12,7 +12,10 @@ workdir: config["outdir"]
 
 # define pipeline target
 rule all:
-  input: consensus=expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in list(range(1,9))]])
+  input: consensus=expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in config['segments']]])
+
+#rule all:
+#  input: expand("{sample}/fastq/{segment}.fastq", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in list(range(1,9))]])
 
 # define input for centrifuge
 def centrifuge_input(wildcards):

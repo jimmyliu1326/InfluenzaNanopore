@@ -11,6 +11,8 @@ Required arguments:
 
 Optional arguments:
 -t|--threads        Number of threads [Default = 32]
+-s|--segment        Limit consensus sequence calling for specific Influenza A genomic segments with each segment number delimited by a comma (Example: -s 1,2,5,6)
+--notrim            Disable adaptor trimming by Porechop
 -h|--help           Display help message
 "
 }
@@ -19,7 +21,7 @@ Optional arguments:
 script_dir=$(dirname $(realpath $0))
 
 # parse arguments
-opts=`getopt -o hi:o:t: -l help,input:,output:,threads:,db:,notrim -- "$@"`
+opts=`getopt -o hi:o:t:s: -l help,input:,output:,threads:,db:,notrim,segment: -- "$@"`
 eval set -- "$opts"
 if [ $? != 0 ] ; then echo "influenza_consensus: Invalid arguments used, exiting"; usage; exit 1 ; fi
 if [[ $1 =~ ^--$ ]] ; then echo "influenza_consensus: Invalid arguments used, exiting"; usage; exit 1 ; fi
@@ -31,6 +33,7 @@ while true; do
         --db) DB_PATH=$2; shift 2;;
         -t|--threads) THREADS=$2; shift 2;;
         --notrim) TRIM=0; shift 1;;
+        -s|--segment) SEGMENTS=$2; shift 2;;
         --) shift; break ;;
         -h|--help) usage; exit 0;;
     esac
@@ -45,7 +48,7 @@ medaka_consensus -h 2&>1 /dev/null
 if [[ $? != 0 ]]; then echo "influenza_consensus: medaka cannot be called, check its installation"; exit 1; fi
 
 seqtk 2&>1 /dev/null
-if [[ $? != 1 ]]; then echo "influenza_consensus: samtools cannot be called, check its installation"; exit 1; fi
+if [[ $? != 1 ]]; then echo "influenza_consensus: seqtk cannot be called, check its installation"; exit 1; fi
 
 snakemake -h > /dev/null
 if [[ $? != 0 ]]; then echo "influenza_consensus: snakemake cannot be called, check its installation"; exit 1; fi
@@ -58,6 +61,19 @@ if [[ $? != 0 ]]; then echo "influenza_consensus: centrifuge cannot be called, c
 
 porechop -h > /dev/null
 if [[ $? != 0 ]]; then echo "influenza_consensus: porechop cannot be called, check its installation"; exit 1; fi
+
+# validate segment input
+for segment in $(echo $SEGMENTS | sed 's/,/\n/g'); do
+  # check if individual elements are valid integers between [1:8]
+  if [[ $(echo -n $segment | wc -m) -ne 1 ]]; then
+    echo "Invalid characters passed to the -s argument, exiting"
+    exit 1
+  fi
+  if ! [[ $segment =~ ^[1-8]$ ]]; then
+    echo "Invalid characters passed to the -s argument, exiting"
+    exit 1
+  fi
+done
 
 # validate input samples.csv
 if ! test -f $INPUT_PATH; then echo "influenza_consensus: Input sample file does not exist, exiting"; exit 1; fi
@@ -83,14 +99,22 @@ if test -z $THREADS; then THREADS=32; fi
 # Set default trim mode to true if not specified
 if test -z $TRIM; then TRIM=1; fi
 
+# Set default segments to produce to [1:8] if not specified
+if test -z $SEGMENTS; then SEGMENTS="1,2,3,4,5,6,7,8,"; fi
+
 # call snakemake
-snakemake --snakefile $script_dir/SnakeFile --cores $THREADS \
-  --config samples=$(realpath $INPUT_PATH) outdir=$OUTPUT_PATH pipeline_dir=$script_dir centrifuge_db=$DB_PATH trim=$TRIM
+snakemake --dag --snakefile $script_dir/SnakeFile --cores $THREADS \
+  --config samples=$(realpath $INPUT_PATH) \
+  outdir=$OUTPUT_PATH \
+  segments="$SEGMENTS" \
+  pipeline_dir=$script_dir \
+  centrifuge_db=$DB_PATH \
+  trim=$TRIM
 
 # clean up temporary directories
 while read lines; do
   sample=$(echo $lines | cut -f1 -d',')
-  for dir in fastq medaka centrifuge target racon; do
+  for dir in fastq medaka centrifuge target racon porechop; do
     if test -d $OUTPUT_PATH/$sample/$dir; then
       rm -rf $OUTPUT_PATH/$sample/$dir
     fi
