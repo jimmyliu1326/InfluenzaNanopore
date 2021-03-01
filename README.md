@@ -14,6 +14,7 @@ Required arguments:
 Optional arguments:
 
 --notrim      Disable adapator trimming by porechop
+-s|--segment  Limit consensus sequence calling for specific Influenza A genomic segments with each segment number delimited by a comma (Example: -s 1,2,5,6)
 -t|--threads  Number of threads
 -h|--help     Display help message
 ```
