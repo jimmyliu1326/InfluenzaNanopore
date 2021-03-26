@@ -86,7 +86,7 @@ rule partition:
     "{sample}/logs/partition_{segment}.log"
   shell:
     """
-    {params.pipeline_dir}/src/centrifuge_res_process.R {input.centrifuge_res} {params.ID_mappings} {params.segment} {output.target_id} {output.segment_readIDs}
+    Rscript {params.pipeline_dir}/src/centrifuge_res_process.R {input.centrifuge_res} {params.ID_mappings} {params.segment} {output.target_id} {output.segment_readIDs}
     seqtk subseq {input.reads} {output.segment_readIDs} > {output.InfA_reads}
     """
 
