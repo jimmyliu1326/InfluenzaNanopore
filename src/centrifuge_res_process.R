@@ -1,6 +1,7 @@
 #!/usr/bin/env Rscript
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(pastecs))
 
 # parse arguments
 args = commandArgs(trailingOnly = T)
@@ -44,25 +45,37 @@ chimeric_reads <- centrifuge_res %>%
   pull(readID)
 print(paste0(segment, " chimeric: ", length(chimeric_reads)))
 
-# identify target based on sequence length
+# select a suitable read as the initial template for error correction
+## calculate read lengths density
+length_density <- density(centrifuge_res$queryLength)
+## find peaks in density
+tps <- turnpoints(length_density$y)
+peaks <- data.frame(x = length_density$x[which(extract(tps) == 1)],
+                    y = length_density$y[which(extract(tps) == 1)],
+                    prob = tps$prob[which(tps$tppos) %in% which(extract(tps) == 1)]) %>%
+            filter(prob <= 0.00005)
+## filter peaks within 300 bps of expected read length
+peaks <- peaks %>% filter(x <= expected_length + 300,
+                          x >= expected_length - 300)
+## select the highest peak
+best_peak <- peaks %>% arrange(desc(y)) %>% slice(1) %>% pull(x)
+## identify target read for template
 target <- centrifuge_res %>%
   filter(!(readID %in% chimeric_reads),
          seqID %in% segment_ids,
-         queryLength <= (expected_length+50)) %>%
-  group_by(queryLength) %>%
-  arrange(desc(score)) %>%
-  slice(1) %>%
-  ungroup() %>%
+         queryLength <= best_peak) %>%
   arrange(desc(queryLength)) %>%
   slice(1) %>%
   pull(readID)
 
 # identify fastq sequence IDs for polishing
+## retain reads within 300 bps of identified peak
 fastq_ids <- centrifuge_res %>%
   filter(!(readID %in% chimeric_reads),
          seqID %in% segment_ids) %>%
-         #queryLength <= expected_length+200) %>%
-  filter(readID != target) %>%
+         queryLength <= best_peak+300,
+         queryLength >= best_peak-300,
+         readID != target) %>%
   pull(readID) %>%
   unique()
 
