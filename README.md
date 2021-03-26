@@ -13,10 +13,12 @@ Required arguments:
 
 Optional arguments:
 
---notrim      Disable adapator trimming by porechop
--s|--segment  Target specific Influenza A genomic segments for consensus calling with each segment number delimited by a comma (Example: -s 1,2,5,6)
--t|--threads  Number of threads
--h|--help     Display help message
+-t|--threads        Number of threads [Default = 32]
+-s|--segment        Target specific Influenza A genomic segments for consensus calling with each segment number delimited by a comma (Example: -s 1,2,5,6)
+-m|--model          Specify the flowcell chemistry used for Nanopore sequencing {Options: r9, r10} [Default = r9]
+--notrim            Disable adaptor trimming by Porechop
+--keep-tmp          Keep all temporary files
+-h|--help           Display help message
 ```
 
 Example command line for pipeline execution:
