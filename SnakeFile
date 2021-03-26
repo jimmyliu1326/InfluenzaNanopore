@@ -7,29 +7,33 @@ samples_meta=pd.read_csv(samples_tbl, header = None)
 samples_meta.columns=["Sample", "Path"]
 samples_meta=samples_meta.set_index("Sample", drop = False)
 
+# load rules
+include: "rules/common.smk"
+include: "rules/read_summary.smk"
+
 # override current working directory
 workdir: config["outdir"]
 
 # define pipeline target
 rule all:
-  input: consensus=expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in config['segments']]])
+  input: 
+      expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in config['segments']]]),
+      "InfA_analysis_viz.html"
+
 
 #rule all:
-#  input: expand("{sample}/fastq/{segment}.fastq", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in list(range(1,9))]])
+#  input: expand("{sample}/target/{segment}.fasta", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in list(range(1,9))]])
 
-# define input for centrifuge
-def centrifuge_input(wildcards):
-  sample=wildcards["sample"]
-  if config["trim"] == 0:
-    return os.path.join(sample, sample+".fastq")
-  else:
-    return os.path.join(sample, "porechop", sample+"_trimmed.fastq")
+#rule all:
+#  input: 
+#    expand("{sample}/nanoplot/{segment}/NanoPlot-data.tsv", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in config['segments']]]),
+#    "InfA_analysis_viz.html"
 
 rule combine_fastq:
   input:
     fastq_dir=lambda wildcards: samples_meta.Path[wildcards.sample]
   output:
-    combined_fastq=temp("{sample}/{sample}.fastq")
+    combined_fastq="{sample}/{sample}.fastq"
   threads: 1
   shell:
     "cat {input.fastq_dir}/*.fastq > {output.combined_fastq}"
@@ -42,7 +46,7 @@ rule porechop:
   log:
     "{sample}/logs/porechop.log"
   output:
-    trimmed_reads=temp("{sample}/porechop/{sample}_trimmed.fastq")
+    trimmed_reads="{sample}/porechop/{sample}_trimmed.fastq"
   shell:
     """
     porechop -t {threads} -i {input.reads} -o {output.trimmed_reads}
@@ -57,8 +61,8 @@ rule centrifuge:
   log:
     "{sample}/logs/centrifuge.log"
   output:
-    centrifuge_res=temp("{sample}/centrifuge/centrifuge_res.tsv"),
-    centrifuge_report=temp("{sample}/centrifuge/centrifuge_report.tsv")
+    centrifuge_res="{sample}/centrifuge/centrifuge_res.tsv",
+    centrifuge_report="{sample}/centrifuge/centrifuge_report.tsv"
   shell:
     """
     centrifuge -p {threads} -U {input.reads} -x {params.db} -S {output.centrifuge_res} \
@@ -76,7 +80,7 @@ rule partition:
     pipeline_dir=config["pipeline_dir"]
   output:
     segment_readIDs=temp("{sample}/centrifuge/{segment}_reads.ids"),
-    InfA_reads=temp("{sample}/fastq/{segment}.fastq"),
+    InfA_reads="{sample}/fastq/{segment}.fastq",
     target_id=temp("{sample}/target/{segment}_id.txt")
   log:
     "{sample}/logs/partition_{segment}.log"
@@ -93,7 +97,7 @@ rule create_target:
   threads: 4
   output:
     target_fastq=temp("{sample}/target/{segment}.fastq"),
-    target=temp("{sample}/target/{segment}.fasta")
+    target="{sample}/target/{segment}.fasta"
   shell:
     """
     seqtk subseq {input.reads} {input.target_id} > {output.target_fastq}
@@ -105,7 +109,7 @@ rule racon_1:
     InfA_reads="{sample}/fastq/{segment}.fastq",
     target="{sample}/target/{segment}.fasta"
   output:
-    alignment_1=temp("{sample}/racon/1/InfA_{segment}_alignment.paf"),
+    alignment_1="{sample}/racon/1/InfA_{segment}_alignment.paf",
     consensus_1="{sample}/racon/1/{segment}.fa"
   log:
     "{sample}/logs/racon_1_{segment}.log"
@@ -121,7 +125,7 @@ rule racon_2:
     InfA_reads="{sample}/fastq/{segment}.fastq",
     consensus_1="{sample}/racon/1/{segment}.fa"
   output:
-    alignment_2=temp("{sample}/racon/2/InfA_{segment}_alignment.paf"),
+    alignment_2="{sample}/racon/2/InfA_{segment}_alignment.paf",
     consensus_2="{sample}/racon/2/{segment}.fa"
   log:
     "{sample}/logs/racon_2_{segment}.log"
@@ -135,32 +139,17 @@ rule racon_2:
 rule medaka:
   input:
     InfA_reads="{sample}/fastq/{segment}.fastq",
-    consensus_4="{sample}/racon/2/{segment}.fa"
-  threads: 16
+    consensus_2="{sample}/racon/2/{segment}.fa"
+  threads: config["threads"]
   params:
-    outdir="{sample}/medaka/{segment}"
+    outdir="{sample}/medaka/{segment}",
+    model=config["model"]
   log:
     "{sample}/logs/medaka_{segment}.log"
   output:
     consensus="{sample}/consensus/{segment}.fa"
   shell:
     """
-    medaka_consensus -i {input.InfA_reads} -d {input.consensus_4} -o {params.outdir} -t 4
+    medaka_consensus -i {input.InfA_reads} -d {input.consensus_2} -o {params.outdir} -t {threads} -m {params.model}
     cp {params.outdir}/consensus.fasta {output.consensus}
-    """
-
-# rule clean:
-#   input:
-#     consensus=expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in list(range(1,9))]]),
-#     fastq_dir=temp("{sample}/fastq"),
-#     racon_dir=temp("{sample}/racon"),
-#     medaka_dir=temp("{sample}/medaka"),
-#     centrifuge_dir=temp("{sample}/centrifuge"),
-#     target_dir=temp("{sample}/target")
-#   output:
-#     log="{sample}/logs/clean_up.log"
-#   shell:
-#     """
-#     echo "Pipeline successfully ran to completion" > {output.log}
-#     """
-  
+    """  

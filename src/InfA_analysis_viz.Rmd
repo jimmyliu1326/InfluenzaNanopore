@@ -1,0 +1,104 @@
+---
+title: "Influenza A Analysis Report"
+date: "`r format(Sys.time(), '%a %d %b %Y')`"
+output:
+  html_document: default
+---
+
+```{r setup, echo = F, message = F, warning = F}
+# load library
+library(tidyverse)
+library(data.table)
+library(scales)
+library(plotly)
+library(ggridges)
+```
+
+```{r parse-arguments, echo = F}
+nanoplot_input <- snakemake@input[["nanoplot_res"]]
+summary_input <- snakemake@input[["summary"]]
+output_dir <- snakemake@params[["outdir"]]
+```
+
+```{r load-data, echo = F, message = F, warning = F}
+# load NanoPlot data
+nanoplot_res <- map_dfr(paste0(output_dir, "/", nanoplot_input), function(x) {
+  # parse sample name from input file path
+  sample <- unlist(strsplit(gsub(paste0(output_dir, "/"), "", x), "/"))[1]
+  segment <- unlist(strsplit(gsub(paste0(output_dir, "/"), "", x), "/"))[3]
+  df <- fread(x, header = T, sep = "\t") %>%
+    mutate(segment = segment,
+           sample = sample)
+  return(df)
+})
+
+# load summary data
+summary_res <- fread(paste0(output_dir, "/", summary_input), sep = ",", header = T)
+```
+
+# {.tabset .tabset-fade}
+## Read Classification Ratio
+```{r classify-ratio, echo = F, message = F, warning = F, fig.width = 12, fig.height = 8}
+p <- summary_res %>% 
+	select(sample, total_reads, classified_reads) %>% 
+	mutate(unclassified = total_reads-classified_reads) %>% 
+	gather(key = "Type", value = "Count", -sample) %>% 
+	mutate(Type = case_when(Type == "total_reads" ~ "Total",
+													Type == "classified_reads" ~ "Classified",
+													T ~ "Unclassified")) %>% 
+	ggplot(aes(x = sample, y = Count, fill = factor(Type, levels = c("Unclassified", "Classified", "Total")))) +
+	geom_bar(stat = "identity", position = "dodge") +
+	theme_minimal() +
+	theme(legend.position = "top",
+				plot.margin = unit(c(0.5,0.5,0.5,0.5), "in")) +
+	labs(x = "",
+			 y = "Read Count",
+			 fill = "") +
+	coord_flip() +
+	scale_y_continuous(labels = comma) +
+	scale_fill_brewer(palette = "Set1")
+
+ggplotly(p)
+
+```
+
+## Read Abundance per Segment
+```{r segment-abundance, echo = F, message = F, warning = F, fig.width=12, fig.height=8}
+p <- summary_res %>% 
+	select(-total_reads, -classified_reads, -percent_classified) %>% 
+	gather(key = "segment", value = "Count", -sample) %>% 
+	mutate(segment = gsub("segment", "Segment", segment),
+				 segment = gsub("_", " ", segment)) %>% 
+	ggplot(aes(x = sample, y = Count, fill = segment)) +
+	geom_bar(stat = "identity", position = "dodge") +
+	theme_minimal() +
+	theme(panel.spacing.y = unit(20, "mm"),
+				panel.spacing.x = unit(10, "mm"),
+				axis.title.x = element_text(margin = unit(c(1,0,0,0), "cm")))+
+	labs(x = "",
+			 y = "Read Count",
+			 fill = "") +
+	coord_flip() +
+	scale_y_continuous(labels = comma) +
+	scale_fill_brewer(palette = "Set2")
+
+ggplotly(p)
+```
+
+## Read Length Distribution per Segment
+```{r read-length, echo = FALSE, message = FALSE, fig.width=14, fig.height=14, warning = F}
+# plot read length distribution per segment
+nanoplot_res %>% 
+	mutate(segment = gsub("segment", "Segment", segment),
+				 segment = gsub("_", " ", segment)) %>% 
+	ggplot(aes(x = lengths, y = sample)) +
+	geom_density_ridges()+
+	scale_x_continuous(labels = comma) +
+	facet_wrap(~segment, scales = "free") +
+	theme_minimal()+
+	theme(panel.spacing.y = unit(20, "mm"),
+				panel.spacing.x = unit(10, "mm"),
+				axis.title.x = element_text(margin = unit(c(1,0,0,0), "cm")))+
+	labs(x = "Read Length",
+			 y = "")
+```
