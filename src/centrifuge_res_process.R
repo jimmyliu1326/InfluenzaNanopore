@@ -52,7 +52,7 @@ length_density <- density(centrifuge_res$queryLength)
 tps <- turnpoints(length_density$y)
 peaks <- data.frame(x = length_density$x[which(extract(tps) == 1)],
                     y = length_density$y[which(extract(tps) == 1)],
-                    prob = tps$prob[which(tps$tppos) %in% which(extract(tps) == 1)]) %>%
+                    prob = tps$prob[which(tps$tppos %in% which(extract(tps) == 1))]) %>%
             filter(prob <= 0.00005)
 ## filter peaks within 300 bps of expected read length
 peaks <- peaks %>% filter(x <= expected_length + 300,
@@ -72,7 +72,7 @@ target <- centrifuge_res %>%
 ## retain reads within 300 bps of identified peak
 fastq_ids <- centrifuge_res %>%
   filter(!(readID %in% chimeric_reads),
-         seqID %in% segment_ids) %>%
+         seqID %in% segment_ids,
          queryLength <= best_peak+300,
          queryLength >= best_peak-300,
          readID != target) %>%
