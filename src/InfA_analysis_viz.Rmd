@@ -7,22 +7,22 @@ output:
 
 ```{r setup, echo = F, message = F, warning = F}
 # load library
-library(tidyverse)
-library(data.table)
-library(scales)
-library(plotly)
-library(ggridges)
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(scales))
+suppressPackageStartupMessages(library(plotly))
+suppressPackageStartupMessages(library(ggridges))
 ```
 
 ```{r parse-arguments, echo = F}
-nanoplot_input <- snakemake@input[["nanoplot_res"]]
+readlength_input <- snakemake@input[["readlength_res"]]
 summary_input <- snakemake@input[["summary"]]
 output_dir <- snakemake@params[["outdir"]]
 ```
 
 ```{r load-data, echo = F, message = F, warning = F}
-# load NanoPlot data
-nanoplot_res <- map_dfr(paste0(output_dir, "/", nanoplot_input), function(x) {
+# load Read Length data
+readlength_res <- map_dfr(paste0(output_dir, "/", readlength_input), function(x) {
   # parse sample name from input file path
   sample <- unlist(strsplit(gsub(paste0(output_dir, "/"), "", x), "/"))[1]
   segment <- unlist(strsplit(gsub(paste0(output_dir, "/"), "", x), "/"))[3]
@@ -88,7 +88,7 @@ ggplotly(p)
 ## Read Length Distribution per Segment
 ```{r read-length, echo = FALSE, message = FALSE, fig.width=14, fig.height=14, warning = F}
 # plot read length distribution per segment
-nanoplot_res %>% 
+readlength_res %>% 
 	mutate(segment = gsub("segment", "Segment", segment),
 				 segment = gsub("_", " ", segment)) %>% 
 	ggplot(aes(x = lengths, y = sample)) +
