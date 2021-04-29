@@ -3,9 +3,13 @@ import os
 
 # parse samples metadata
 samples_tbl=config["samples"]
-samples_meta=pd.read_csv(samples_tbl, header = None)
+samples_meta=pd.read_csv(samples_tbl, header = None, dtype = str)
 samples_meta.columns=["Sample", "Path"]
 samples_meta=samples_meta.set_index("Sample", drop = False)
+
+# get list of segments to generate
+segments=str(config['segments']).replace('(', '').replace(')','').replace(', ','')
+segment_l=["segment_" + s for s in segments]
 
 # load rules
 include: "rules/common.smk"
@@ -17,34 +21,29 @@ workdir: config["outdir"]
 # define pipeline target
 rule all:
   input: 
-      expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in config['segments']]]),
+      expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=segment_l),
       "InfA_analysis_viz.html"
 
+#rule all:
+#  input: expand("{sample}/subsample_fastq/{segment}.fastq", sample=samples_meta.Sample, segment=segment_l)
 
 #rule all:
-#  input: expand("{sample}/target/{segment}.fasta", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in list(range(1,9))]])
-
-#rule all:
-#  input: 
-#    expand("{sample}/nanoplot/{segment}/NanoPlot-data.tsv", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in config['segments']]]),
+#  input:
 #    "InfA_analysis_viz.html"
 
 rule combine_fastq:
   input:
     fastq_dir=lambda wildcards: samples_meta.Path[wildcards.sample]
   output:
-    combined_fastq="{sample}/{sample}.fastq"
+    combined_fastq=temp("{sample}/{sample}.fastq")
   threads: 1
   shell:
     "cat {input.fastq_dir}/*.fastq > {output.combined_fastq}"
-
 
 rule porechop:
   input:
     reads="{sample}/{sample}.fastq"
   threads: 32
-  log:
-    "{sample}/logs/porechop.log"
   output:
     trimmed_reads="{sample}/porechop/{sample}_trimmed.fastq"
   shell:
@@ -58,8 +57,6 @@ rule centrifuge:
   threads: 32
   params:
     db=config["centrifuge_db"]
-  log:
-    "{sample}/logs/centrifuge.log"
   output:
     centrifuge_res="{sample}/centrifuge/centrifuge_res.tsv",
     centrifuge_report="{sample}/centrifuge/centrifuge_report.tsv"
@@ -79,77 +76,59 @@ rule partition:
     ID_mappings=config["pipeline_dir"]+"/database/InfA_refseq_segment_mappings.csv",
     pipeline_dir=config["pipeline_dir"]
   output:
-    segment_readIDs=temp("{sample}/centrifuge/{segment}_reads.ids"),
+    segment_readIDs="{sample}/centrifuge/{segment}_reads.ids",
     InfA_reads="{sample}/fastq/{segment}.fastq",
-    target_id=temp("{sample}/target/{segment}_id.txt")
-  log:
-    "{sample}/logs/partition_{segment}.log"
+    binned_readIDs="{sample}/binned_fastq/{segment}.reads.ids",
+    binned_reads="{sample}/binned_fastq/{segment}.fastq",
+    binned_read_lengths="{sample}/binned_fastq/{segment}.read.lengths"
   shell:
     """
-    Rscript {params.pipeline_dir}/src/centrifuge_res_process.R {input.centrifuge_res} {params.ID_mappings} {params.segment} {output.target_id} {output.segment_readIDs}
+    Rscript {params.pipeline_dir}/src/centrifuge_res_process.R {input.centrifuge_res} \
+      {params.ID_mappings} \
+      {params.segment} \
+      {output.binned_readIDs} \
+      {output.segment_readIDs} \
+      {output.binned_read_lengths}
     seqtk subseq {input.reads} {output.segment_readIDs} > {output.InfA_reads}
+    seqtk subseq {input.reads} {output.binned_readIDs} > {output.binned_reads}
     """
 
-rule create_target:
-  input:
-    reads=centrifuge_input,
-    target_id="{sample}/target/{segment}_id.txt"
+rule subsample:
+  input: "{sample}/fastq/{segment}.fastq"
+  output: 
+    subsample="{sample}/subsample_fastq/{segment}.fastq"
+  params: config["subsample"]
   threads: 4
-  output:
-    target_fastq=temp("{sample}/target/{segment}.fastq"),
-    target="{sample}/target/{segment}.fasta"
   shell:
     """
-    seqtk subseq {input.reads} {input.target_id} > {output.target_fastq}
-    seqtk seq -A {output.target_fastq} > {output.target} 
-    """
-  
-rule racon_1:
-  input:
-    InfA_reads="{sample}/fastq/{segment}.fastq",
-    target="{sample}/target/{segment}.fasta"
-  output:
-    alignment_1="{sample}/racon/1/InfA_{segment}_alignment.paf",
-    consensus_1="{sample}/racon/1/{segment}.fa"
-  log:
-    "{sample}/logs/racon_1_{segment}.log"
-  threads: 16
-  shell:
-    """
-    minimap2 -x map-ont -t {threads} {input.target} {input.InfA_reads} > {output.alignment_1}
-    racon -t {threads} {input.InfA_reads} {output.alignment_1} {input.target} > {output.consensus_1}
+    if (( $(echo $(cat {input} | wc -l) / 4 | bc) > 1000 )); then
+      seqtk sample -s100 {input} {params} > {output.subsample}
+    else
+      cp {input} {output.subsample}
+    fi
     """
 
-rule racon_2:
-  input:
-    InfA_reads="{sample}/fastq/{segment}.fastq",
-    consensus_1="{sample}/racon/1/{segment}.fa"
-  output:
-    alignment_2="{sample}/racon/2/InfA_{segment}_alignment.paf",
-    consensus_2="{sample}/racon/2/{segment}.fa"
-  log:
-    "{sample}/logs/racon_2_{segment}.log"
-  threads: 16
+rule draft_consensus:
+  input: "{sample}/subsample_fastq/{segment}.fastq"
+  output: "{sample}/draft_consensus/{segment}.fasta"
+  threads: 4
   shell:
     """
-    minimap2 -x map-ont -t {threads} {input.consensus_1} {input.InfA_reads} > {output.alignment_2}
-    racon -t {threads} {input.InfA_reads} {output.alignment_2} {input.consensus_1} > {output.consensus_2}
+    spoa -l 1 -s {input} > {output}
     """
 
 rule medaka:
   input:
-    InfA_reads="{sample}/fastq/{segment}.fastq",
-    consensus_2="{sample}/racon/2/{segment}.fa"
+    InfA_reads="{sample}/subsample_fastq/{segment}.fastq",
+    draft_consensus="{sample}/draft_consensus/{segment}.fasta"
   threads: config["threads"]
   params:
     outdir="{sample}/medaka/{segment}",
     model=config["model"]
-  log:
-    "{sample}/logs/medaka_{segment}.log"
   output:
     consensus="{sample}/consensus/{segment}.fa"
   shell:
     """
-    medaka_consensus -i {input.InfA_reads} -d {input.consensus_2} -o {params.outdir} -t {threads} -m {params.model}
+    medaka_consensus -i {input.InfA_reads} -d {input.draft_consensus} -o {params.outdir} -t {threads} -m {params.model} -f
     cp {params.outdir}/consensus.fasta {output.consensus}
     """  

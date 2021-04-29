@@ -46,39 +46,46 @@ chimeric_reads <- centrifuge_res %>%
 print(paste0(segment, " chimeric: ", length(chimeric_reads)))
 
 # select a suitable read as the initial template for error correction
-## calculate read lengths density
-length_density <- density(centrifuge_res$queryLength)
-## find peaks in density
+## calculate read lengths density within 500 bps of expected length
+length_density <- centrifuge_res %>%
+  filter(!(readID %in% chimeric_reads),
+         seqID %in% segment_ids) %>%
+  pull(queryLength) %>%
+  density()
+## find peaks in read lengths density
 tps <- turnpoints(length_density$y)
 peaks <- data.frame(x = length_density$x[which(extract(tps) == 1)],
                     y = length_density$y[which(extract(tps) == 1)],
                     prob = tps$prob[which(tps$tppos %in% which(extract(tps) == 1))]) %>%
             filter(prob <= 0.00005)
-## filter peaks within 300 bps of expected read length
-peaks <- peaks %>% filter(x <= expected_length + 300,
-                          x >= expected_length - 300)
-## select the highest peak
-best_peak <- peaks %>% arrange(desc(y)) %>% slice(1) %>% pull(x)
-## identify target read for template
-target <- centrifuge_res %>%
-  filter(!(readID %in% chimeric_reads),
-         seqID %in% segment_ids,
-         queryLength <= best_peak) %>%
-  arrange(desc(queryLength)) %>%
+## select the peak closest to the expected length
+best_peak <- peaks %>% 
+  mutate(difference = abs(x - expected_length)) %>%
+  arrange(-desc(difference)) %>%
   slice(1) %>%
-  pull(readID)
+  pull(x)
+print(paste0(gsub("_", " ", segment), " peak found at:", best_peak, " bps"))
 
-# identify fastq sequence IDs for polishing
-## retain reads within 300 bps of identified peak
+# identify fastq sequence IDs for consensus building
 fastq_ids <- centrifuge_res %>%
   filter(!(readID %in% chimeric_reads),
          seqID %in% segment_ids,
-         queryLength <= best_peak+300,
-         queryLength >= best_peak-300,
-         readID != target) %>%
-  pull(readID) %>%
-  unique()
+         queryLength <= best_peak+50,
+         queryLength >= best_peak-50) %>%
+  #select(readID, queryLength) %>%
+  #distinct() %>%
+  #mutate(difference = abs(queryLength - best_peak)) %>%
+  #arrange(-desc(difference)) %>%
+  #slice(1:subsample_n) %>%
+  rename(lengths = queryLength)
+
+# identify fastq sequence IDs for all reads mapped to target segment
+binned_fastq_ids <- centrifuge_res %>%
+  filter(!(readID %in% chimeric_reads),
+         seqID %in% segment_ids) %>%
+  rename(lengths = queryLength)
 
 # write output
-write.table(target, file = args[4], quote = F, row.names = F, col.names = F)
-write.table(fastq_ids, file = args[5], quote = F, row.names = F, col.names = F)
+write.table(unique(binned_fastq_ids$readID), file = args[4], quote = F, row.names = F, col.names = F)
+write.table(unique(fastq_ids$readID), file = args[5], quote = F, row.names = F, col.names = F)
+write.table(select(binned_fastq_ids, lengths), file = args[6], quote = F, row.names = F, col.names = T)

@@ -12,6 +12,7 @@ Required arguments:
 Optional arguments:
 -t|--threads        Number of threads [Default = 32]
 -s|--segment        Target specific Influenza A genomic segments for consensus calling with each segment number delimited by a comma (Example: -s 1,2,5,6)
+--subsample         Specify the target coverage for consensus calling [Default = 1000]
 -m|--model          Specify the flowcell chemistry used for Nanopore sequencing {Options: r9, r10} [Default = r9]
 --notrim            Disable adaptor trimming by Porechop
 --keep-tmp          Keep all temporary files
@@ -23,7 +24,7 @@ Optional arguments:
 script_dir=$(dirname $(realpath $0))
 
 # parse arguments
-opts=`getopt -o hi:o:t:s:m: -l help,input:,output:,threads:,db:,notrim,segment:,model:,keep-tmp -- "$@"`
+opts=`getopt -o hi:o:t:s:m: -l help,input:,output:,threads:,db:,notrim,segment:,model:,keep-tmp,subsample: -- "$@"`
 eval set -- "$opts"
 if [ $? != 0 ] ; then echo "influenza_consensus: Invalid arguments used, exiting"; usage; exit 1 ; fi
 if [[ $1 =~ ^--$ ]] ; then echo "influenza_consensus: Invalid arguments used, exiting"; usage; exit 1 ; fi
@@ -35,6 +36,7 @@ while true; do
         --db) DB_PATH=$2; shift 2;;
         -t|--threads) THREADS=$2; shift 2;;
         -m|--model) MODEL=$2; shift 2;;
+        --subsample) SUBSAMPLE=$2; shift 2;;
         --notrim) TRIM=0; shift 1;;
         --keep-tmp) KEEP_TMP=1; shift 1;;
         -s|--segment) SEGMENTS=$2; shift 2;;
@@ -43,6 +45,7 @@ while true; do
     esac
 done
 
+# check if required arguments are given
 if test -z $INPUT_PATH; then echo "influenza_consensus: Required argument -i is missing, exiting"; exit 1; fi
 if test -z $OUTPUT_PATH; then echo "influenza_consensus: Required argument -o is missing, exiting"; exit 1; fi
 if test -z $DB_PATH; then echo "influenza_consensus: Required argument --db is missing, exiting"; exit 1; fi
@@ -95,7 +98,7 @@ if ! test -z $SEGMENTS; then
   done
 else
   # Set default segments to produce = [1:8] if not specified
-  if test -z $SEGMENTS; then SEGMENTS="1,2,3,4,5,6,7,8,"; fi
+  if test -z $SEGMENTS; then SEGMENTS="1,2,3,4,5,6,7,8"; fi
 fi
 
 # validate input samples.csv
@@ -125,6 +128,13 @@ if test -z $TRIM; then TRIM=1; fi
 # Set default keep temporary files (KEEP_TMP) to 0 if not specified
 if test -z $KEEP_TMP; then TMP=0; fi
 
+# Set default subsample depth to 1000 if not specified
+if test -z $SUBSAMPLE; then SUBSAMPLE=1000; fi
+
+# Remove existing analysis html report and summary statistics file in OUTPUT_PATH
+if test -f $OUTPUT_PATH/InfA_analysis_viz.html; then rm $OUTPUT_PATH/InfA_analysis_viz.html; fi
+if test -f $OUTPUT_PATH/summary_statistics.csv; then rm $OUTPUT_PATH/summary_statistics.csv; fi
+
 # call snakemake
 snakemake --snakefile $script_dir/SnakeFile --cores $THREADS \
   --config samples=$(realpath $INPUT_PATH) \
@@ -134,13 +144,14 @@ snakemake --snakefile $script_dir/SnakeFile --cores $THREADS \
   centrifuge_db=$DB_PATH \
   trim=$TRIM \
   model=$MODEL \
-  threads=$THREADS
+  threads=$THREADS \
+  subsample=$SUBSAMPLE
 
 # clean up temporary directories
 if [[ $KEEP_TMP -eq 0 ]]; then
   while read lines; do
     sample=$(echo $lines | cut -f1 -d',')
-    for dir in nanoplot fastq medaka centrifuge target racon porechop; do
+    for dir in nanoplot fastq medaka centrifuge binned_fastq porechop draft_consensus subsample_fastq; do
       if test -d $OUTPUT_PATH/$sample/$dir; then
         rm -rf $OUTPUT_PATH/$sample/$dir
       fi

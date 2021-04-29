@@ -1,7 +1,7 @@
 rule read_count:
   input:
     combined_fastq=centrifuge_input,
-    segment_fastq=lambda wildcards: expand(wildcards.sample+"/fastq/{segment}.fastq", segment=["segment_" + x for x in [str(s) for s in config['segments']]])
+    segment_fastq=lambda wildcards: expand(wildcards.sample+"/binned_fastq/{segment}.fastq", segment=segment_l)
   output:
     count_summary=temp("{sample}/read_count_summary.csv")
   threads: 4
@@ -18,7 +18,7 @@ rule read_summary:
   output: "summary_statistics.csv"
   threads: 1
   params:
-    segment=["segment_" + x for x in [str(s) for s in config['segments']]]
+    segment=segment_l
   shell:
     """
     echo "sample,total_reads,classified_reads,percent_classified,$(echo {params.segment} | sed 's/ /,/g')" > {output}
@@ -32,21 +32,9 @@ rule read_summary:
     done
     """
 
-rule nanoplot:
-  input: "{sample}/fastq/{segment}.fastq"
-  output: 
-    nanoplot_outdir="{sample}/nanoplot/{segment}",
-    nanoplot_data="{sample}/nanoplot/{segment}/NanoPlot-data.tsv"
-  threads: 8
-  shell:
-    """
-    NanoPlot -t {threads} --raw -o {output.nanoplot_outdir} --fastq {input}
-    gunzip {output.nanoplot_outdir}/NanoPlot-data.tsv.gz
-    """
-
 rule read_length_viz:
   input: 
-    nanoplot_res=expand("{sample}/nanoplot/{segment}/NanoPlot-data.tsv", sample=samples_meta.Sample, segment=["segment_" + x for x in [str(s) for s in config['segments']]]),
+    readlength_res=expand("{sample}/binned_fastq/{segment}.read.lengths", sample=samples_meta.Sample, segment=segment_l),
     summary="summary_statistics.csv"
   output: "InfA_analysis_viz.html"
   params:
