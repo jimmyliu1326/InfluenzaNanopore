@@ -15,6 +15,7 @@ Optional arguments:
 
 -t|--threads        Number of threads [Default = 32]
 -s|--segment        Target specific Influenza A genomic segments for consensus calling with each segment number delimited by a comma (Example: -s 1,2,5,6)
+--subsample         Specify the target coverage for consensus calling [Default = 1000]
 -m|--model          Specify the flowcell chemistry used for Nanopore sequencing {Options: r9, r10} [Default = r9]
 --notrim            Disable adaptor trimming by Porechop
 --keep-tmp          Keep all temporary files
@@ -29,8 +30,8 @@ influenza_consensus.sh -i samples.csv -o /path/to/output --db /path/to/centrifug
 ## Dependencies
 * R >= 3.6
 * medaka == 1.0.3
-* racon >= 1.4.13
 * centrifuge >= 1.0.3
 * seqtk >= 1.3
 * snakemake >= 5.30.1
 * porechop >= 0.2.4
+* spoa >= 4.0.7
