@@ -60,17 +60,11 @@ if [[ $? != 1 ]]; then echo "influenza_consensus: seqtk cannot be called, check 
 snakemake -h > /dev/null
 if [[ $? != 0 ]]; then echo "influenza_consensus: snakemake cannot be called, check its installation"; exit 1; fi
 
-racon -h > /dev/null
-if [[ $? != 0 ]]; then echo "influenza_consensus: racon cannot be called, check its installation"; exit 1; fi
-
 centrifuge -h > /dev/null
 if [[ $? != 0 ]]; then echo "influenza_consensus: centrifuge cannot be called, check its installation"; exit 1; fi
 
 porechop -h > /dev/null
 if [[ $? != 0 ]]; then echo "influenza_consensus: porechop cannot be called, check its installation"; exit 1; fi
-
-NanoPlot -h > /dev/null
-if [[ $? != 0 ]]; then echo "influenza_consensus: nanoplot cannot be called, check its installation"; exit 1; fi
 
 # validate model parameter input if specified
 if ! test -z $MODEL; then
@@ -126,7 +120,7 @@ if test -z $THREADS; then THREADS=32; fi
 if test -z $TRIM; then TRIM=1; fi
 
 # Set default keep temporary files (KEEP_TMP) to 0 if not specified
-if test -z $KEEP_TMP; then TMP=0; fi
+if test -z $KEEP_TMP; then KEEP_TMP=0; fi
 
 # Set default subsample depth to 1000 if not specified
 if test -z $SUBSAMPLE; then SUBSAMPLE=1000; fi
