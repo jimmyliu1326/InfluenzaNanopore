@@ -20,11 +20,12 @@ Optional arguments:
 "
 }
 
-# get script directory
+# define global variables
 script_dir=$(dirname $(realpath $0))
+script_name=$(basename $0 .sh)
 
 # parse arguments
-opts=`getopt -o hi:o:t:s:m: -l help,input:,output:,threads:,db:,notrim,segment:,model:,keep-tmp,subsample: -- "$@"`
+opts=`getopt -o hi:o:t:s:m: -l help,input:,output:,threads:,db:,notrim,segment:,model:,keep-tmp,subsample:,mode: -- "$@"`
 eval set -- "$opts"
 if [ $? != 0 ] ; then echo "influenza_consensus: Invalid arguments used, exiting"; usage; exit 1 ; fi
 if [[ $1 =~ ^--$ ]] ; then echo "influenza_consensus: Invalid arguments used, exiting"; usage; exit 1 ; fi
@@ -35,6 +36,7 @@ while true; do
         -o|--output) OUTPUT_PATH=$2; shift 2;;
         --db) DB_PATH=$2; shift 2;;
         -t|--threads) THREADS=$2; shift 2;;
+        --mode) MODE=$2; shift 2;;
         -m|--model) MODEL=$2; shift 2;;
         --subsample) SUBSAMPLE=$2; shift 2;;
         --notrim) TRIM=0; shift 1;;
@@ -125,12 +127,19 @@ if test -z $KEEP_TMP; then KEEP_TMP=0; fi
 # Set default subsample depth to 1000 if not specified
 if test -z $SUBSAMPLE; then SUBSAMPLE=1000; fi
 
+# Set default read selection mode to dynamic if not specified
+if test -z $MODE; then MODE="dynamic"; fi
+
+# validate read selection mode if specified
+if ! [[ $MODE =~ ^(dynamic|static)$ ]]; then echo "${script_name}: Invalid mode option passed to the --mode argument, accepted values are dynamic/static, exiting"; exit 1; fi
+
 # Remove existing analysis html report and summary statistics file in OUTPUT_PATH
 if test -f $OUTPUT_PATH/InfA_analysis_viz.html; then rm $OUTPUT_PATH/InfA_analysis_viz.html; fi
 if test -f $OUTPUT_PATH/summary_statistics.csv; then rm $OUTPUT_PATH/summary_statistics.csv; fi
 
 # call snakemake
 snakemake --snakefile $script_dir/SnakeFile --cores $THREADS \
+  --keep-going \
   --config samples=$(realpath $INPUT_PATH) \
   outdir=$(realpath $OUTPUT_PATH) \
   segments="$SEGMENTS" \
@@ -139,7 +148,8 @@ snakemake --snakefile $script_dir/SnakeFile --cores $THREADS \
   trim=$TRIM \
   model=$MODEL \
   threads=$THREADS \
-  subsample=$SUBSAMPLE
+  subsample=$SUBSAMPLE \
+  mode=$MODE
 
 # clean up temporary directories
 if [[ $KEEP_TMP -eq 0 ]]; then
@@ -152,3 +162,19 @@ if [[ $KEEP_TMP -eq 0 ]]; then
     done
   done < $INPUT_PATH
 fi
+
+# check status of consensus building for each segment
+IFS=","
+read -r -a segment_array <<< $SEGMENTS
+while read lines; do
+  sample=$(echo "$lines" | cut -f1 -d',')
+  echo -e "influenza_consensus: \033[0;33mConsensus Building Summary for $sample\033[0m"
+  for i in ${segment_array[@]}; do
+    if test -f $OUTPUT_PATH/$sample/consensus/segment_${i}.fa; then
+    echo -e " \033[0;33mSegment ${i}\033[0m: \033[0;32mSUCCESS\033[0m"
+    else 
+    echo -e " \033[0;33mSegment ${i}\033[0m: \033[0;31mFAIL\033[0m"
+    fi
+  done
+done < $INPUT_PATH
+

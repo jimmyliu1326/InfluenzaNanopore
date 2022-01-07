@@ -86,7 +86,8 @@ rule partition:
   params:
     segment="{segment}",
     ID_mappings=config["pipeline_dir"]+"/database/InfA_refseq_segment_mappings.csv",
-    pipeline_dir=config["pipeline_dir"]
+    pipeline_dir=config["pipeline_dir"],
+    mode=config['mode']
   output:
     segment_readIDs="{sample}/centrifuge/{segment}_reads.ids",
     InfA_reads="{sample}/fastq/{segment}.fastq",
@@ -100,7 +101,9 @@ rule partition:
       {params.segment} \
       {output.binned_readIDs} \
       {output.segment_readIDs} \
-      {output.binned_read_lengths}
+      {output.binned_read_lengths} \
+      {params.mode}
+    
     seqtk subseq {input.reads} {output.segment_readIDs} > {output.InfA_reads}
     seqtk subseq {input.reads} {output.binned_readIDs} > {output.binned_reads}
     """
@@ -123,10 +126,16 @@ rule subsample:
 rule draft_consensus:
   input: "{sample}/subsample_fastq/{segment}.fastq"
   output: "{sample}/draft_consensus/{segment}.fasta"
+  params: "{segment}"
   threads: 4
   shell:
     """
+    if [ -s {input} ]; then
     spoa -l 1 -s {input} > {output}
+    else
+    echo "influenza_consensus: Failed to detect any full-length reads for Segment $(echo {params} | sed 's/segment_//g'), exiting"
+    exit 1    
+    fi
     """
 
 rule medaka:

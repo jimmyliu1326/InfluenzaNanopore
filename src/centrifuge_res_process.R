@@ -11,6 +11,7 @@ segment <- args[3]
 centrifuge_res <- fread(args[1], header = T, sep = "\t")
 segment_ids <- fread(args[2], header = F, sep = ",") %>% filter(V2 == segment) %>% pull(V1)
 segment_mapping <- fread(args[2], header = F, sep = ",") %>% rename(ID = V1, segment = V2)
+mode <- args[7]
 
 # segment expected length
 # Segment 1: 2341
@@ -46,24 +47,53 @@ chimeric_reads <- centrifuge_res %>%
 print(paste0(segment, " chimeric: ", length(chimeric_reads)))
 
 # select a suitable read as the initial template for error correction
-## calculate read lengths density within 500 bps of expected length
-length_density <- centrifuge_res %>%
+# run read length distribution peak detection if dynamic mode
+if (mode == "dynamic") {
+## calculate read lengths density
+tryCatch( {
+  length_density <- centrifuge_res %>%
   filter(!(readID %in% chimeric_reads),
          seqID %in% segment_ids) %>%
   pull(queryLength) %>%
-  density()
+  density() 
+  },
+  error=function(e) {
+    message(paste0("influenza_consensus: Cannot calculate the read length distribution for Segment ",
+    gsub("segment_", "", segment),
+    ". Falling back to using --mode static"))
+    best_peak <- expected_length
+  }
+)
 ## find peaks in read lengths density
-tps <- turnpoints(length_density$y)
-peaks <- data.frame(x = length_density$x[which(extract(tps) == 1)],
+tryCatch( {
+  tps <- turnpoints(length_density$y)
+  peaks <- data.frame(x = length_density$x[which(extract(tps) == 1)],
                     y = length_density$y[which(extract(tps) == 1)],
                     prob = tps$prob[which(tps$tppos %in% which(extract(tps) == 1))]) %>%
             filter(prob <= 0.00005)
-## select the peak closest to the expected length
-best_peak <- peaks %>% 
-  mutate(difference = abs(x - expected_length)) %>%
-  arrange(-desc(difference)) %>%
-  slice(1) %>%
-  pull(x)
+}, error=function(e) {
+  message(paste0("influenza_consensus: Failed to detect any peak signals for Segment ",
+    gsub("segment_", "", segment),
+    ". Falling back to using --mode static"))
+    best_peak <- expected_length
+})
+
+if ( exists("peaks") == F ) {
+    best_peak <- expected_length
+  } else if (nrow(peaks) == 0) {
+    best_peak <- expected_length
+  } else {
+    ## select the peak closest to the expected length
+    best_peak <- peaks %>% 
+      mutate(difference = abs(x - expected_length)) %>%
+      arrange(-desc(difference)) %>%
+      slice(1) %>%
+      pull(x)
+  }
+
+} else {
+  best_peak <- expected_length
+}
 print(paste0(gsub("_", " ", segment), " peak found at:", best_peak, " bps"))
 
 # identify fastq sequence IDs for consensus building
