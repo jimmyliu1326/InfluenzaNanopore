@@ -1,0 +1,11 @@
+name: influenza_consensus
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - medaka=1.8.0
+  - seqtk=1.4
+  - snakemake
+  - centrifuge=1.0.4
+  - porechop=0.2.4
