@@ -6,6 +6,7 @@ channels:
 dependencies:
   - medaka
   - seqtk
+  - spoa
   - snakemake
   - centrifuge=1.0.4
   - porechop=0.2.4
