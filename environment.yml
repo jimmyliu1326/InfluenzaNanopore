@@ -1,11 +1,11 @@
-name: influenza_consensus
+name: influenza_nanopore
 channels:
   - bioconda
   - conda-forge
   - defaults
 dependencies:
-  - medaka=1.8.0
-  - seqtk=1.4
+  - medaka
+  - seqtk
   - snakemake
   - centrifuge=1.0.4
   - porechop=0.2.4
