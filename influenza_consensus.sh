@@ -23,6 +23,7 @@ Optional arguments:
 # define global variables
 script_dir=$(dirname $(realpath $0))
 script_name=$(basename $0 .sh)
+DB_PATH="/db/viralRefSeq_InfA_custom"
 
 # parse arguments
 opts=`getopt -o hi:o:t:s:m: -l help,input:,output:,threads:,db:,notrim,segment:,model:,keep-tmp,subsample:,mode: -- "$@"`
@@ -136,6 +137,13 @@ if ! [[ $MODE =~ ^(dynamic|static)$ ]]; then echo "${script_name}: Invalid mode 
 # Remove existing analysis html report and summary statistics file in OUTPUT_PATH
 if test -f $OUTPUT_PATH/InfA_analysis_viz.html; then rm $OUTPUT_PATH/InfA_analysis_viz.html; fi
 if test -f $OUTPUT_PATH/summary_statistics.csv; then rm $OUTPUT_PATH/summary_statistics.csv; fi
+
+while read lines; do
+  sample=$(echo $lines | cut -f1 -d',')
+  if test -d $OUTPUT_PATH/$sample; then
+    rm -rf $OUTPUT_PATH/$sample
+  fi
+done < $INPUT_PATH
 
 # call snakemake
 snakemake --snakefile $script_dir/SnakeFile --cores $THREADS \

@@ -14,3 +14,5 @@ RUN micromamba install -n base -y -c bioconda -c conda-forge -f /InfluenzaNanopo
     rm -rf $CONDA_DIR/include && \
     rm -rf $CONDA_DIR/lib/python3.*/site-packages/pip && \
     find $CONDA_DIR -name '__pycache__' -type d -exec rm -rf '{}' '+'
+
+ADD /mnt/e/data/reference/viralRefSeq_InfA_custom/ /db/
