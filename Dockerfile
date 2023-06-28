@@ -1,7 +1,7 @@
 FROM mambaorg/micromamba:0.14.0
 
 RUN apt-get update && \
-    apt-get install -y procps git && \
+    apt-get install -y procps git bc && \
     rm -rf /var/lib/apt/lists/* && \
     CONDA_DIR="/opt/conda" && \
     git clone https://github.com/jimmyliu1326/InfluenzaNanopore.git && \
@@ -15,4 +15,4 @@ RUN micromamba install -n base -y -c bioconda -c conda-forge -f /InfluenzaNanopo
     rm -rf $CONDA_DIR/lib/python3.*/site-packages/pip && \
     find $CONDA_DIR -name '__pycache__' -type d -exec rm -rf '{}' '+'
 
-ADD /mnt/e/data/reference/viralRefSeq_InfA_custom/ /db/
+ADD db/ /db/
