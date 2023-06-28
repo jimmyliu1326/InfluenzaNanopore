@@ -9,8 +9,11 @@ samples_meta.columns=["Sample", "Path"]
 samples_meta=samples_meta.set_index("Sample", drop = False)
 
 # get list of segments to generate
-segments=str(config['segments']).replace('(', '').replace(')','').replace(', ','')
-segment_l=["segment_" + s for s in segments]
+segments = str(config['segments']).replace('(', '').replace(')','').split(',')
+segment_names = ["PB1", "PB2", "PA", "HA", "NP", "NA", "M", "NS"]
+segment_l = ["segment_" + s for s in segments]
+segment_l_idx = [int(s) - 1 for s in segments]
+segment_l_names = [segment_names[i] for i in segment_l_idx]
 
 # load rules
 include: "rules/common.smk"
@@ -22,7 +25,7 @@ workdir: config["outdir"]
 # define pipeline target
 rule all:
   input: 
-      expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=segment_l),
+      expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=segment_l, segment_names=segment_l_names),
       "InfA_analysis_viz.html"
 
 #rule all:
@@ -126,12 +129,15 @@ rule subsample:
 rule draft_consensus:
   input: "{sample}/subsample_fastq/{segment}.fastq"
   output: "{sample}/draft_consensus/{segment}.fasta"
-  params: "{segment}"
+  params: 
+    segment="{segment}",
+    segment_name="{segment_name}"
   threads: 4
   shell:
     """
     if [ -s {input} ]; then
     spoa -l 1 -s {input} > {output}
+    sed -i "s/>/>{segment_name} /g" {output}
     else
     echo "influenza_consensus: Failed to detect any full-length reads for Segment $(echo {params} | sed 's/segment_//g'), exiting"
     exit 1    
