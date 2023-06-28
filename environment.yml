@@ -9,3 +9,11 @@ dependencies:
   - snakemake
   - centrifuge=1.0.4
   - porechop=0.2.4
+  - r=4.2
+  - r-tidyverse
+  - r-pastecs
+  - r-rmarkdown
+  - r-knitr
+  - r-data.table
+  - r-plotly
+  - r-scales
