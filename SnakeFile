@@ -10,10 +10,7 @@ samples_meta=samples_meta.set_index("Sample", drop = False)
 
 # get list of segments to generate
 segments = str(config['segments']).replace('(', '').replace(')','').split(',')
-segment_names = ["PB1", "PB2", "PA", "HA", "NP", "NA", "M", "NS"]
 segment_l = ["segment_" + s for s in segments]
-segment_l_idx = [int(s) - 1 for s in segments]
-segment_l_names = [segment_names[i] for i in segment_l_idx]
 
 # load rules
 include: "rules/common.smk"
@@ -25,7 +22,7 @@ workdir: config["outdir"]
 # define pipeline target
 rule all:
   input: 
-      expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=segment_l, segment_names=segment_l_names),
+      expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=segment_l),
       "InfA_analysis_viz.html"
 
 #rule all:
@@ -39,7 +36,7 @@ rule combine_fastq:
   input:
     fastq_dir=lambda wildcards: samples_meta.Path[wildcards.sample]
   output:
-    combined_fastq=temp("{sample}/{sample}.fastq")
+    combined_fastq="{sample}/{sample}.fastq"
   threads: 1
   shell:
     "cat {input.fastq_dir}/*.fastq > {output.combined_fastq}"
@@ -48,7 +45,7 @@ rule combine_fastq_gz:
   input:
     fastq_dir=lambda wildcards: samples_meta.Path[wildcards.sample]
   output:
-    combined_fastq=temp("{sample}/{sample}.fastq.gz")
+    combined_fastq="{sample}/{sample}.fastq.gz"
   threads: 1
   shell:
     """
@@ -131,15 +128,15 @@ rule draft_consensus:
   output: "{sample}/draft_consensus/{segment}.fasta"
   params: 
     segment="{segment}",
-    segment_name="{segment_name}"
+    segment_name=lambda wildcards: get_segment_name(wildcards.segment)
   threads: 4
   shell:
     """
     if [ -s {input} ]; then
     spoa -l 1 -s {input} > {output}
-    sed -i "s/>/>{segment_name} /g" {output}
+    sed -i "s/>/>{params.segment_name} /g" {output}
     else
-    echo "influenza_consensus: Failed to detect any full-length reads for Segment $(echo {params} | sed 's/segment_//g'), exiting"
+    echo "influenza_consensus: Failed to detect any full-length reads for Segment $(echo {params.segment} {params.segment_name} | sed 's/segment_//g'), exiting"
     exit 1    
     fi
     """

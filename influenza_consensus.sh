@@ -164,6 +164,7 @@ snakemake --snakefile $script_dir/SnakeFile --cores $THREADS \
 if [[ $KEEP_TMP -eq 0 ]]; then
   while read lines; do
     sample=$(echo $lines | cut -f1 -d',')
+    if test -f $OUTPUT_PATH/$sample/$sample.fastq*; then rm $OUTPUT_PATH/$sample/$sample.fastq*; fi
     for dir in nanoplot fastq medaka centrifuge binned_fastq porechop draft_consensus subsample_fastq; do
       if test -d $OUTPUT_PATH/$sample/$dir; then
         rm -rf $OUTPUT_PATH/$sample/$dir
