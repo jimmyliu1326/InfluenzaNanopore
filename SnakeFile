@@ -22,7 +22,7 @@ workdir: config["outdir"]
 # define pipeline target
 rule all:
   input: 
-      expand("{sample}/consensus/{sample}_{segment}.fa", sample=samples_meta.Sample, segment=segment_l),
+      expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=segment_l),
       "InfA_analysis_viz.html"
 
 #rule all:
@@ -128,13 +128,14 @@ rule draft_consensus:
   output: "{sample}/draft_consensus/{segment}.fasta"
   params: 
     segment="{segment}",
-    segment_name=lambda wildcards: get_segment_name(wildcards.segment)
+    segment_name=lambda wildcards: get_segment_name(wildcards.segment),
+    sample_name="{sample}"
   threads: 4
   shell:
     """
     if [ -s {input} ]; then
     spoa -l 1 -s {input} > {output}
-    sed -i "s/>/>{params.segment_name}\/{sample} /g" {output}
+    sed -i "s/>/>{params.segment_name}\/{params.sample_name} /g" {output}
     else
     echo "influenza_consensus: Failed to detect any full-length reads for Segment $(echo {params.segment} {params.segment_name} | sed 's/segment_//g'), exiting"
     exit 1    

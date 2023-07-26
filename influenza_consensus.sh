@@ -174,6 +174,7 @@ if [[ $KEEP_TMP -eq 0 ]]; then
 fi
 
 # check status of consensus building for each segment
+# and rename file to contain sample names
 IFS=","
 read -r -a segment_array <<< $SEGMENTS
 while read lines; do
@@ -182,6 +183,7 @@ while read lines; do
   for i in ${segment_array[@]}; do
     if test -f $OUTPUT_PATH/$sample/consensus/segment_${i}.fa; then
     echo -e " \033[0;33mSegment ${i}\033[0m: \033[0;32mSUCCESS\033[0m"
+    mv $OUTPUT_PATH/${sample}/consensus/segment_${i}.fa $OUTPUT_PATH/${sample}/consensus/${sample}_segment_${i}.fa
     else 
     echo -e " \033[0;33mSegment ${i}\033[0m: \033[0;31mFAIL\033[0m"
     fi
