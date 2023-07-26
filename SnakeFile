@@ -22,7 +22,7 @@ workdir: config["outdir"]
 # define pipeline target
 rule all:
   input: 
-      expand("{sample}/consensus/{segment}.fa", sample=samples_meta.Sample, segment=segment_l),
+      expand("{sample}/consensus/{sample}_{segment}.fa", sample=samples_meta.Sample, segment=segment_l),
       "InfA_analysis_viz.html"
 
 #rule all:
@@ -134,7 +134,7 @@ rule draft_consensus:
     """
     if [ -s {input} ]; then
     spoa -l 1 -s {input} > {output}
-    sed -i "s/>/>{params.segment_name} /g" {output}
+    sed -i "s/>/>{params.segment_name}\/{sample} /g" {output}
     else
     echo "influenza_consensus: Failed to detect any full-length reads for Segment $(echo {params.segment} {params.segment_name} | sed 's/segment_//g'), exiting"
     exit 1    
