@@ -18,7 +18,7 @@ def centrifuge_input(wildcards):
 
 # get segment name
 def get_segment_name(segment_str):
-  segment_names = ["PB1", "PB2", "PA", "HA", "NP", "NA", "M", "NS"]
+  segment_names = ["PB2", "PB1", "PA", "HA", "NP", "NA", "M", "NS"]
   segment_idx = int(segment_str.replace("segment_", "")) - 1
   segment_name = segment_names[segment_idx]
   return(segment_name)
