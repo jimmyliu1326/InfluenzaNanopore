@@ -22,4 +22,14 @@ def get_segment_name(segment_str):
   segment_idx = int(segment_str.replace("segment_", "")) - 1
   segment_name = segment_names[segment_idx]
   return(segment_name)
+
+# combine fastq/fastq.gz files in sample directory
+def combined_output(wildcards):
+  sample=wildcards["sample"]
+  path=samples_meta.Path[wildcards.sample]
+  file=glob.glob(path+"/*.fastq*")[0]
+  if file.endswith(".gz"):
+    return os.path.join(sample, sample+".fastq.gz")
+  else:
+    return os.path.join(sample, sample+".fastq")
   

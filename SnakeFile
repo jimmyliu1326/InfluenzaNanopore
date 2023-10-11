@@ -54,7 +54,7 @@ rule combine_fastq_gz:
 
 rule porechop:
   input:
-    reads="{sample}/{sample}.fastq"
+    reads=combined_output
   threads: 32
   output:
     trimmed_reads="{sample}/porechop/{sample}_trimmed.fastq"
