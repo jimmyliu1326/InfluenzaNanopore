@@ -1,4 +1,4 @@
-FROM mambaorg/micromamba:0.14.0
+FROM condaforge/mambaforge:4.9.2-5
 
 RUN apt-get update && \
     apt-get install -y procps git bc && \
@@ -8,8 +8,10 @@ RUN apt-get update && \
     chmod +x /InfluenzaNanopore/influenza_consensus.sh && \
     ln -s /InfluenzaNanopore/influenza_consensus.sh /usr/local/bin/influenza_consensus.sh
 
-RUN micromamba install -n base -y -c bioconda -c conda-forge -f /InfluenzaNanopore/environment.yml && \
-    micromamba clean --all --yes && \
+RUN conda config --set channel_priority flexible && \
+    mamba env update -n base -f /InfluenzaNanopore/environment.yml && \
+    mamba env create -n medaka /InfluenzaNanopore/envs/medaka.yml && \
+    mamba clean --all --yes && \
     rm -rf $CONDA_DIR/conda-meta && \
     rm -rf $CONDA_DIR/include && \
     rm -rf $CONDA_DIR/lib/python3.*/site-packages/pip && \
