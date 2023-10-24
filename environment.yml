@@ -1,8 +1,10 @@
+name: influenza_nanopore
 channels:
   - bioconda
   - conda-forge
   - defaults
 dependencies:
+  - python=3.6
   - medaka
   - seqtk
   - spoa
