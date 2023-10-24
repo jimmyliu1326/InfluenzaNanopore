@@ -4,7 +4,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - medaka
+  - medaka=1.6.0
   - seqtk
   - spoa
   - snakemake
