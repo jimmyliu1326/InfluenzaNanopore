@@ -8,8 +8,7 @@ RUN apt-get update && \
     chmod +x /InfluenzaNanopore/influenza_consensus.sh && \
     ln -s /InfluenzaNanopore/influenza_consensus.sh /usr/local/bin/influenza_consensus.sh
 
-RUN conda config --set channel_priority flexible && \
-    mamba create -p $CONDA_DIR/envs/medaka -c bioconda -c conda-forge -y medaka=1.6.0 && \
+RUN mamba create -p $CONDA_DIR/envs/medaka -c conda-forge -c bioconda -y medaka=1.6.0 --strict-channel-priority && \
     mamba env update -n base -f /InfluenzaNanopore/environment.yml && \
     mamba clean --all --yes && \
     rm -rf $CONDA_DIR/conda-meta && \
