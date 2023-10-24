@@ -158,7 +158,8 @@ snakemake --snakefile $script_dir/SnakeFile --cores $THREADS \
   threads=$THREADS \
   subsample=$SUBSAMPLE \
   mode=$MODE \
-  --nolock
+  --nolock \
+  --use-conda
 
 # clean up temporary directories
 if [[ $KEEP_TMP -eq 0 ]]; then

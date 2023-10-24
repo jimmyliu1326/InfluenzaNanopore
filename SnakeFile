@@ -152,6 +152,8 @@ rule medaka:
     model=config["model"]
   output:
     consensus="{sample}/consensus/{segment}.fa"
+  conda:
+    "envs/medaka.yml"
   shell:
     """
     medaka_consensus -i {input.InfA_reads} -d {input.draft_consensus} -o {params.outdir} -t {threads} -m {params.model} -f
