@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#set -eo pipefail
 
 usage() {
 echo "
@@ -28,7 +29,7 @@ DB_PATH="/db/viralRefSeq_InfA_custom"
 # parse arguments
 opts=`getopt -o hi:o:t:s:m: -l help,input:,output:,threads:,db:,notrim,segment:,model:,keep-tmp,subsample:,mode: -- "$@"`
 eval set -- "$opts"
-if [ $? != 0 ] ; then echo "influenza_consensus: Invalid arguments used, exiting"; usage; exit 1 ; fi
+if [ $? != 0 ] ; then usage; exit 1 ; fi
 if [[ $1 =~ ^--$ ]] ; then echo "influenza_consensus: Invalid arguments used, exiting"; usage; exit 1 ; fi
 
 while true; do
@@ -70,14 +71,26 @@ porechop -h > /dev/null
 if [[ $? != 0 ]]; then echo "influenza_consensus: porechop cannot be called, check its installation"; exit 1; fi
 
 # validate model parameter input if specified
+models=( r103_min_high_g345 r103_min_high_g360 \
+         r103_prom_high_g360 r103_prom_snp_g3210 \
+         r103_prom_variant_g3210 r10_min_high_g303 \
+         r10_min_high_g340 r941_min_fast_g303 \
+         r941_min_high_g303 r941_min_high_g360 \
+         r941_min_high_g330 r941_min_high_g340_rle
+         r941_min_high_g344 r941_min_high_g351 \
+         r941_prom_fast_g303 r941_prom_high_g303 \
+         r941_prom_high_g330 r941_prom_high_g344 \
+         r941_prom_high_g360 r941_prom_high_g4011 )
 if ! test -z $MODEL; then
   # test if invalid characters used
-  if ! [[ $MODEL =~ ^(r9|r10)$ ]]; then echo "Invalid model specification passed to the -m argument, exiting"; fi
-  # set medaka model
-  if [[ $MODEL == "r9" ]]; then MODEL="r941_min_high_g360"; else MODEL="r103_min_high_g360"; fi
+  if ! [[ "${models[@]}" =~ "${MODEL}" ]]; then 
+    echo "Invalid medaka model passed to the -m argument, exiting"
+    echo "Supported models include: $(echo ${models[@]} | sed 's/ /, /g')"
+    exit 1
+  fi
 else
   # Set default model if not specified
-  if test -z $MODEL; then MODEL="r941_min_high_g360"; fi
+  MODEL="r941_min_high_g360"
 fi
 
 # validate segment parameter input if specified
