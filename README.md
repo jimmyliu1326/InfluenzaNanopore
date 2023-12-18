@@ -16,7 +16,7 @@ Optional arguments:
 -t|--threads        Number of threads [Default = 32]
 -s|--segment        Target specific Influenza A genomic segments for consensus calling with each segment number delimited by a comma (Example: -s 1,2,5,6)
 --subsample         Specify the target coverage for consensus calling [Default = 1000]
--m|--model          Specify the flowcell chemistry used for Nanopore sequencing {Options: see [here](https://github.com/jimmyliu1326/InfluenzaNanopore/blob/main/medaka_models.txt)} [Default = r941_min_high_g360]
+-m|--model          Specify the flowcell chemistry used for Nanopore sequencing [Default = r941_min_high_g360]
 --notrim            Disable adaptor trimming by Porechop
 --keep-tmp          Keep all temporary files
 -h|--help           Display help message
