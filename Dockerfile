@@ -16,7 +16,11 @@ RUN mamba create -p $CONDA_DIR/envs/medaka -c conda-forge -c bioconda -y medaka 
     rm -rf $CONDA_DIR/lib/python3.*/site-packages/pip && \
     find $CONDA_DIR -name '__pycache__' -type d -exec rm -rf '{}' '+'
     
-RUN mkdir /.cache && \
-    chmod a+rwX /.cache
+RUN mkdir /data && \
+    chmod a+rwX /data
 
 ADD db/ /db/
+
+WORKDIR /data
+
+ENV XDG_CACHE_HOME=/data
