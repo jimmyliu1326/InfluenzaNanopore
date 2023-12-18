@@ -83,7 +83,7 @@ models=( r103_min_high_g345 r103_min_high_g360 \
          r941_prom_high_g360 r941_prom_high_g4011 )
 if ! test -z $MODEL; then
   # test if invalid characters used
-  if ! [[ "${models[@]}" =~ "${MODEL}" ]]; then 
+  if ! [[ $(echo "${models[@]}" | grep -w "${MODEL}") ]]; then 
     echo "Invalid medaka model passed to the -m argument, exiting"
     echo "Supported models include: $(echo ${models[@]} | sed 's/ /, /g')"
     exit 1
