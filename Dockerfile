@@ -8,12 +8,15 @@ RUN apt-get update && \
     chmod +x /InfluenzaNanopore/influenza_consensus.sh && \
     ln -s /InfluenzaNanopore/influenza_consensus.sh /usr/local/bin/influenza_consensus.sh
 
-RUN mamba create -p $CONDA_DIR/envs/medaka -c conda-forge -c bioconda -y medaka=1.6.0 && \
+RUN mamba create -p $CONDA_DIR/envs/medaka -c conda-forge -c bioconda -y medaka --strict-channel-priority && \
     mamba env update -n base -f /InfluenzaNanopore/environment.yml && \
     mamba clean --all --yes && \
     rm -rf $CONDA_DIR/conda-meta && \
     rm -rf $CONDA_DIR/include && \
     rm -rf $CONDA_DIR/lib/python3.*/site-packages/pip && \
     find $CONDA_DIR -name '__pycache__' -type d -exec rm -rf '{}' '+'
+    
+RUN mkdir /.cache && \
+    chmod a+rwX /.cache
 
 ADD db/ /db/
