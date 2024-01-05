@@ -156,6 +156,7 @@ rule medaka:
     "medaka"
   shell:
     """
-    medaka_consensus -i {input.InfA_reads} -d {input.draft_consensus} -o {params.outdir} -t {threads} -m {params.model} -f
+    model_dir="/opt/conda/envs/medaka/lib/python3.10/site-packages/medaka/data"
+    medaka_consensus -i {input.InfA_reads} -d {input.draft_consensus} -o {params.outdir} -t {threads} -m $model_dir/{params.model}* -f
     cp {params.outdir}/consensus.fasta {output.consensus}
     """  
